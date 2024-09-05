@@ -1,0 +1,51 @@
+package dev.tocraft.thconstruct.library.json.predicate.modifier;
+
+import dev.tocraft.eomantle.data.predicate.IJsonPredicate;
+import dev.tocraft.eomantle.data.predicate.PredicateRegistry;
+import dev.tocraft.eomantle.data.registry.GenericLoaderRegistry.IGenericLoader;
+import dev.tocraft.eomantle.data.registry.GenericLoaderRegistry.SingletonLoader;
+import dev.tocraft.thconstruct.library.modifiers.ModifierId;
+
+import java.util.List;
+
+/** Predicate that checks against a modifier */
+public interface ModifierPredicate extends IJsonPredicate<ModifierId> {
+  /** Instance that always returns true */
+  ModifierPredicate ANY = SingletonLoader.singleton(loader -> new ModifierPredicate() {
+    @Override
+    public boolean matches(ModifierId input) {
+      return true;
+    }
+
+    @Override
+    public IGenericLoader<? extends ModifierPredicate> getLoader() {
+      return loader;
+    }
+  });
+  /** Loader for modifier predicates */
+  PredicateRegistry<ModifierId> LOADER = new PredicateRegistry<>("Modifier Predicate", ANY);
+
+  /** Gets an inverted condition */
+  @Override
+  default IJsonPredicate<ModifierId> inverted() {
+    return LOADER.invert(this);
+  }
+
+  @Override
+  IGenericLoader<? extends ModifierPredicate> getLoader();
+
+
+  /* Helper methods */
+
+  /** Creates an and predicate */
+  @SafeVarargs
+  static IJsonPredicate<ModifierId> and(IJsonPredicate<ModifierId>... predicates) {
+    return LOADER.and(List.of(predicates));
+  }
+
+  /** Creates an or predicate */
+  @SafeVarargs
+  static IJsonPredicate<ModifierId> or(IJsonPredicate<ModifierId>... predicates) {
+    return LOADER.or(List.of(predicates));
+  }
+}

@@ -1,0 +1,67 @@
+package dev.tocraft.thconstruct.smeltery.block.controller;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.HitResult;
+import dev.tocraft.eomantle.block.RetexturedBlock;
+import dev.tocraft.eomantle.util.BlockEntityHelper;
+import dev.tocraft.thconstruct.common.network.TinkerNetwork;
+import dev.tocraft.thconstruct.smeltery.block.entity.controller.HeatingStructureBlockEntity;
+import dev.tocraft.thconstruct.smeltery.block.entity.multiblock.MultiblockResult;
+import dev.tocraft.thconstruct.smeltery.network.StructureErrorPositionPacket;
+
+import javax.annotation.Nullable;
+
+/**
+ * Multiblock that displays the error from the tile entity on right click
+ */
+public abstract class HeatingControllerBlock extends ControllerBlock {
+  protected HeatingControllerBlock(Properties builder) {
+    super(builder);
+  }
+
+  @Override
+  protected boolean openGui(Player player, Level world, BlockPos pos) {
+    super.openGui(player, world, pos);
+    // only need to update if holding the proper items
+    if (!world.isClientSide) {
+      BlockEntityHelper.get(HeatingStructureBlockEntity.class, world, pos).ifPresent(te -> {
+        MultiblockResult result = te.getStructureResult();
+        if (!result.isSuccess() && te.showDebugBlockBorder(player)) {
+          TinkerNetwork.getInstance().sendTo(new StructureErrorPositionPacket(pos, result.getPos()), player);
+        }
+      });
+    }
+    return true;
+  }
+
+  @Override
+  protected boolean displayStatus(Player player, Level world, BlockPos pos, BlockState state) {
+    if (!world.isClientSide) {
+      BlockEntityHelper.get(HeatingStructureBlockEntity.class, world, pos).ifPresent(te -> {
+        MultiblockResult result = te.getStructureResult();
+        if (!result.isSuccess()) {
+          player.displayClientMessage(result.getMessage(), true);
+          TinkerNetwork.getInstance().sendTo(new StructureErrorPositionPacket(pos, result.getPos()), player);
+        }
+      });
+    }
+    return true;
+  }
+
+  @Override
+  public void setPlacedBy(Level world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+    super.setPlacedBy(world, pos, state, placer, stack);
+    RetexturedBlock.updateTextureBlock(world, pos, stack);
+  }
+
+  @Override
+  public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter world, BlockPos pos, Player player) {
+    return RetexturedBlock.getPickBlock(world, pos, state);
+  }
+}

@@ -1,0 +1,90 @@
+package dev.tocraft.thconstruct.library.json.variable.tool;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.LivingEntity;
+import dev.tocraft.eomantle.data.loadable.record.RecordLoadable;
+import dev.tocraft.eomantle.data.registry.GenericLoaderRegistry;
+import dev.tocraft.eomantle.data.registry.GenericLoaderRegistry.IGenericLoader;
+import dev.tocraft.eomantle.data.registry.GenericLoaderRegistry.IHaveLoader;
+import dev.tocraft.thconstruct.library.json.variable.ToFloatFunction;
+import dev.tocraft.thconstruct.library.json.variable.VariableLoaderRegistry;
+import dev.tocraft.thconstruct.library.json.variable.melee.MeleeVariable;
+import dev.tocraft.thconstruct.library.json.variable.stat.ConditionalStatVariable;
+import dev.tocraft.thconstruct.library.tools.context.ToolAttackContext;
+import dev.tocraft.thconstruct.library.tools.nbt.IToolStackView;
+
+import javax.annotation.Nullable;
+
+import static dev.tocraft.eomantle.data.registry.GenericLoaderRegistry.SingletonLoader.singleton;
+
+/**
+ * Variable that fetches a value from a tool instance.
+ * All tool variables automatically work as melee, mining speed, and conditional stat variables due to the superset parameter space.
+ */
+public interface ToolVariable extends IHaveLoader, MeleeVariable, ConditionalStatVariable {
+  GenericLoaderRegistry<ToolVariable> LOADER = new VariableLoaderRegistry<>("Tool Variable", ToolVariable.Constant::new);
+
+  /** Gets a value from the given tool */
+  float getValue(IToolStackView tool);
+
+  @Override
+  IGenericLoader<? extends ToolVariable> getLoader();
+
+
+  /* delegating methods, all tool variables are automatically the other types */
+
+  @Override
+  default float getValue(IToolStackView tool, @Nullable LivingEntity entity) {
+    return getValue(tool);
+  }
+
+  @Override
+  default float getValue(IToolStackView tool, @Nullable ToolAttackContext context, @Nullable LivingEntity attacker) {
+    return getValue(tool);
+  }
+
+
+  /* Singletons */
+
+  /** Creates a new singleton variable getter */
+  static ToolVariable simple(ToFloatFunction<IToolStackView> getter) {
+    return singleton(loader -> new ToolVariable() {
+      @Override
+      public float getValue(IToolStackView tool) {
+        return getter.apply(tool);
+      }
+
+      @Override
+      public IGenericLoader<? extends ToolVariable> getLoader() {
+        return loader;
+      }
+    });
+  }
+
+  /** Current durability of the tool */
+  ToolVariable CURRENT_DURABILITY = simple(IToolStackView::getCurrentDurability);
+
+
+  /** Registers a variable with tools, melee, conditional stat, and mining speed */
+  static void register(ResourceLocation name, IGenericLoader<? extends ToolVariable> loader) {
+    LOADER.register(name, loader);
+    MeleeVariable.LOADER.register(name, loader);
+    ConditionalStatVariable.register(name, loader);
+  }
+
+  
+  /** Constant value instance for this object */
+  record Constant(float value) implements VariableLoaderRegistry.ConstantFloat, ToolVariable {
+    public static final RecordLoadable<ToolVariable.Constant> LOADER = VariableLoaderRegistry.constantLoader(ToolVariable.Constant::new);
+
+    @Override
+    public float getValue(IToolStackView tool) {
+      return value;
+    }
+
+    @Override
+    public IGenericLoader<? extends ToolVariable> getLoader() {
+      return LOADER;
+    }
+  }
+}

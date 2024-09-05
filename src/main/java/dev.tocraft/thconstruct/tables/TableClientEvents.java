@@ -1,0 +1,69 @@
+package dev.tocraft.thconstruct.tables;
+
+import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.world.item.DyeableLeatherItem;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.client.event.ModelEvent.RegisterGeometryLoaders;
+import net.minecraftforge.client.event.RegisterColorHandlersEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import dev.tocraft.thconstruct.common.ClientEventBase;
+import dev.tocraft.thconstruct.library.client.model.block.TableModel;
+import dev.tocraft.thconstruct.shared.block.entity.TableBlockEntity;
+import dev.tocraft.thconstruct.tables.block.entity.chest.TinkersChestBlockEntity;
+import dev.tocraft.thconstruct.tables.client.TableTileEntityRenderer;
+import dev.tocraft.thconstruct.tables.client.inventory.CraftingStationScreen;
+import dev.tocraft.thconstruct.tables.client.inventory.ModifierWorktableScreen;
+import dev.tocraft.thconstruct.tables.client.inventory.PartBuilderScreen;
+import dev.tocraft.thconstruct.tables.client.inventory.TinkerChestScreen;
+import dev.tocraft.thconstruct.tables.client.inventory.TinkerStationScreen;
+
+@SuppressWarnings("unused")
+@EventBusSubscriber(modid= dev.tocraft.thconstruct.ThConstruct.MOD_ID, value=Dist.CLIENT, bus=Bus.MOD)
+public class TableClientEvents extends ClientEventBase {
+  @SubscribeEvent
+  static void registerModelLoader(RegisterGeometryLoaders event) {
+    event.register("table", TableModel.LOADER);
+  }
+
+  @SubscribeEvent
+  static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+    BlockEntityRendererProvider<TableBlockEntity> tableRenderer = TableTileEntityRenderer::new;
+    event.registerBlockEntityRenderer(TinkerTables.craftingStationTile.get(), tableRenderer);
+    event.registerBlockEntityRenderer(TinkerTables.tinkerStationTile.get(), tableRenderer);
+    event.registerBlockEntityRenderer(TinkerTables.modifierWorktableTile.get(), tableRenderer);
+    event.registerBlockEntityRenderer(TinkerTables.partBuilderTile.get(), tableRenderer);
+  }
+
+  @SubscribeEvent
+  static void setupClient(final FMLClientSetupEvent event) {
+    MenuScreens.register(TinkerTables.craftingStationContainer.get(), CraftingStationScreen::new);
+    MenuScreens.register(TinkerTables.tinkerStationContainer.get(), TinkerStationScreen::new);
+    MenuScreens.register(TinkerTables.partBuilderContainer.get(), PartBuilderScreen::new);
+    MenuScreens.register(TinkerTables.modifierWorktableContainer.get(), ModifierWorktableScreen::new);
+    MenuScreens.register(TinkerTables.tinkerChestContainer.get(), TinkerChestScreen::new);
+  }
+
+  @SubscribeEvent
+  static void registerBlockColors(final RegisterColorHandlersEvent.Block event) {
+    event.getBlockColors().register((state, world, pos, index) -> {
+      if (world != null && pos != null) {
+        BlockEntity te = world.getBlockEntity(pos);
+        if (te instanceof TinkersChestBlockEntity) {
+          return ((TinkersChestBlockEntity)te).getColor();
+        }
+      }
+      return -1;
+    }, TinkerTables.tinkersChest.get());
+  }
+
+  @SubscribeEvent
+  static void registerItemColors(final RegisterColorHandlersEvent.Item event) {
+    event.register((stack, index) -> ((DyeableLeatherItem)stack.getItem()).getColor(stack), TinkerTables.tinkersChest.asItem());
+  }
+}

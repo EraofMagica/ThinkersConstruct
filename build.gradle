@@ -1,5 +1,7 @@
+import net.darkhax.curseforgegradle.TaskPublishCurseForge
+
 /*
- * Tinkers Construct
+ * Thinkers Construct
  * Master build file
  * 
  * Authors: boni, Sunstrike, ProgWML6
@@ -9,9 +11,10 @@
 plugins {
     id 'eclipse'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '5.1.+'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
     id 'io.freefair.lombok' version '8.6'
+    id 'net.darkhax.curseforgegradle' version '1.1.15'
 }
 //apply plugin: 'maven'
 
@@ -41,14 +44,14 @@ repositories {
             includeGroup "curse.maven"
         }
     }
-    // If you have mod jar dependencies in ./libs, you can declare them as a repository like so:
-     flatDir {
-         dir '../Mantle/build/libs'
-     }
+    maven {
+        name = "tocraftMavenPublic"
+        url "https://maven.tocraft.dev/public"
+    }
 }
 
-group = 'slimeknights.tconstruct'
-archivesBaseName = 'TinkersConstruct'
+group = 'dev.tocraft'
+archivesBaseName = 'ThinkersConstruct'
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 // sets version to the slimeKnights version format
@@ -90,7 +93,7 @@ sourceSets {
             //But exclude the cache of the generated data from what gets built
             exclude '.cache'
             // exclude debug resources, they are for heling us make the mod, not for the actual mod
-            exclude 'assets/tconstruct/debug'
+            exclude 'assets/thconstruct/debug'
         }
     }
 }
@@ -181,7 +184,7 @@ minecraft {
             environment 'assetIndex', '{asset_index}'
             environment 'assetDirectory', '{assets_root}'
 
-            args '--mod', 'tconstruct', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/'), '--existing-mod', 'mantle'
+            args '--mod', 'thconstruct', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/'), '--existing-mod', 'mantle'
 
             mods {
                 tconstruct {
@@ -200,18 +203,18 @@ dependencies {
     minecraft 'net.minecraftforge:forge:' + minecraft_version + '-' + forge_version
 
     // would ideally use API for this, but that does not work well with fg.deobf in my understanding
-    implementation fg.deobf("slimeknights.mantle:Mantle:${minecraft_version}-${mantle_version}")
+    implementation fg.deobf("dev.tocraft:EoMantle:${minecraft_version}-${eomantle_version}")
 
     // compile against the JEI API but do not include it at runtime
-    compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
-    compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}"
     // at runtime, use the full JEI jar
-    runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-forge:${jei_version}"
 
     // implementation fg.deobf("mcjty.theoneprobe:TheOneProbe-${minecraft_base_version}:${minecraft_base_version}-${probe_version}")
 
     // compileOnly fg.deobf("com.blamejared.crafttweaker:CraftTweaker-${minecraft_version}:${crt_version}")
-    compileOnly fg.deobf("blusunrize.immersiveengineering:ImmersiveEngineering:${minecraft_version}-${ie_version}")
+    compileOnly "blusunrize.immersiveengineering:ImmersiveEngineering:${minecraft_version}-${ie_version}"
 //    runtimeOnly fg.deobf("curse.maven:MoonlightLib-499980:4983974")
 //    runtimeOnly fg.deobf("curse.maven:MmmMmmMmmMmm-225738:4410143")
 //    runtimeOnly fg.deobf("curse.maven:lazy-dfu-forge-460819:4327266")
@@ -219,9 +222,9 @@ dependencies {
     // runtimeOnly fg.deobf("curse.maven:terrablender-563928:3619749")
     // runtimeOnly fg.deobf("curse.maven:biomes-o-plenty-220318:3616582")
     // runtimeOnly fg.deobf("curse.maven:terralith-513688:3606078")
-    compileOnly fg.deobf("curse.maven:diet-443570:4813890")
+    compileOnly "curse.maven:diet-443570:4813904"
 
-    compileOnly fg.deobf("dev.gigaherz.jsonthings:JsonThings-${minecraft_version}:${json_things_version}")
+    compileOnly "curse.maven:json-things-541617:5593943"
 
     deployerJars 'org.apache.maven.wagon:wagon-ssh:2.2'
 
@@ -243,7 +246,7 @@ def modsTomlSpec = copySpec{
             'loader_range': loader_range,
             'minecraft_range': minecraft_range,
             'forge_range': forge_range,
-            'mantle_range': mantle_range,
+            'eomantle_range': eomantle_range,
             'jei_range': jei_range,
             'json_things_range': json_things_range
     }
@@ -299,7 +302,7 @@ jar.finalizedBy('reobfJar')
 
 task sourcesJar(type: Jar) {
     from sourceSets.main.allJava
-    classifier = 'sources'
+    archiveClassifier = 'sources'
 }
 
 artifacts {
@@ -375,12 +378,31 @@ publishing {
             artifact sourcesJar
         }
     }
-
     repositories {
-        if (project.hasProperty('DEPLOY_DIR')) {
-            maven { url DEPLOY_DIR }
+        if (System.getenv("MAVEN_PASS") != null) {
+            maven {
+                name = "tocraftMavenPublic"
+                url "https://maven.tocraft.dev/public"
+
+                credentials {
+                    username = "tocraft"
+                    password = System.getenv("MAVEN_PASS")
+                }
+            }
         }
     }
+}
+
+tasks.register('curseforge', TaskPublishCurseForge) {
+    apiToken = System.getenv("CURSEFORGE_TOKEN")
+
+    // The main file to upload
+    def mainFile = upload(927399, jar)
+    mainFile.displayName = project.minecraft_version + "-" + project.name + "-" + project.mod_version
+    mainFile.releaseType = 'release'
+    mainFile.addModLoader(project.name)
+    mainFile.addRequirement("crafted-core")
+    mainFile.changelog = "https://github.com/EraofMagic/eomtweaks/releases/tag/" + project.mod_version + "-" + project.minecraft_version
 }
 
 tasks.withType(JavaCompile).configureEach {
